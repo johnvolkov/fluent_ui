@@ -28,7 +28,7 @@ enum ExpanderDirection {
 ///  * <https://docs.microsoft.com/en-us/windows/apps/design/controls/expander>
 class Expander extends StatefulWidget {
   /// Creates an expander
-  const Expander({
+  Expander({
     Key? key,
     this.leading,
     required this.header,
@@ -91,7 +91,7 @@ class Expander extends StatefulWidget {
   final ExpanderDirection direction;
 
   /// Whether the [Expander] is initially expanded. Defaults to `false`
-  final bool initiallyExpanded;
+  bool initiallyExpanded;
 
   /// A callback called when the current state is changed. `true` when
   /// open and `false` when closed.
@@ -112,17 +112,23 @@ class Expander extends StatefulWidget {
   ExpanderState createState() => ExpanderState();
 }
 
-class ExpanderState extends State<Expander>
-    with SingleTickerProviderStateMixin {
+class ExpanderState extends State<Expander> with SingleTickerProviderStateMixin {
   late ThemeData _theme;
 
-  bool? _open;
-  bool get open => _open ?? false;
-  set open(bool value) {
-    if (_open != value) _handlePressed();
-  }
-
   late AnimationController _controller;
+
+  bool isInit = false;
+
+  @override
+  void didUpdateWidget(oldWidget) {
+    if (!isInit) {
+      isInit = true;
+      return;
+    }
+    if (!mounted) return;
+    _handlePressed();
+    super.didUpdateWidget(oldWidget);
+  }
 
   @override
   void initState() {
@@ -137,30 +143,29 @@ class ExpanderState extends State<Expander>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _theme = FluentTheme.of(context);
-    if (_open == null) {
-      _open = !widget.initiallyExpanded;
-      open = widget.initiallyExpanded;
-    }
   }
 
   void _handlePressed() {
-    if (open) {
+    if (widget.initiallyExpanded) {
       _controller.animateTo(
         0.0,
         duration: widget.animationDuration ?? _theme.fastAnimationDuration,
         curve: widget.animationCurve ?? _theme.animationCurve,
       );
-      _open = false;
     } else {
       _controller.animateTo(
         1.0,
         duration: widget.animationDuration ?? _theme.fastAnimationDuration,
         curve: widget.animationCurve ?? _theme.animationCurve,
       );
-      _open = true;
     }
-    widget.onStateChanged?.call(open);
-    if (mounted) setState(() {});
+
+    widget.onStateChanged?.call(widget.initiallyExpanded);
+    if (mounted) {
+      setState(() {
+        widget.initiallyExpanded = !widget.initiallyExpanded;
+      });
+    }
   }
 
   bool get _isDown => widget.direction == ExpanderDirection.down;
@@ -193,7 +198,7 @@ class ExpanderState extends State<Expander>
               ),
               borderRadius: BorderRadius.vertical(
                 top: const Radius.circular(4.0),
-                bottom: Radius.circular(open ? 0.0 : 4.0),
+                bottom: Radius.circular(widget.initiallyExpanded ? 0.0 : 4.0),
               ),
             ),
             padding: const EdgeInsetsDirectional.only(start: 16.0),
@@ -225,12 +230,9 @@ class ExpanderState extends State<Expander>
                 alignment: Alignment.center,
                 child: widget.icon ??
                     RotationTransition(
-                      turns: Tween<double>(begin: 0, end: 0.5)
-                          .animate(_controller),
+                      turns: Tween<double>(begin: 0, end: 0.5).animate(_controller),
                       child: Icon(
-                        _isDown
-                            ? FluentIcons.chevron_down
-                            : FluentIcons.chevron_up,
+                        _isDown ? FluentIcons.chevron_down : FluentIcons.chevron_up,
                         size: 10,
                       ),
                     ),
@@ -248,10 +250,9 @@ class ExpanderState extends State<Expander>
             border: Border.all(
               color: theme.resources.cardStrokeColorDefault,
             ),
-            color: widget.contentBackgroundColor ??
-                theme.resources.cardBackgroundFillColorSecondary,
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(4.0)),
+            color:
+                widget.contentBackgroundColor ?? theme.resources.cardBackgroundFillColorSecondary,
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(4.0)),
           ),
           child: widget.content,
         ),
